@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+pydantic_settings
+alembic
+python-multipart
+python-jose
+passlib
+pytest
+httpx
+phone-iso3166
+ruff

@@ -1,0 +1,12 @@
+services:
+  api:
+    container_name: barber-api
+    image: barber-api
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:///./data/barbershop.db
+    restart: always
