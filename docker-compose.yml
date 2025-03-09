@@ -1,12 +1,12 @@
 services:
   api:
-    container_name: barber-api
-    image: barber-api
+    container_name: waitlist-api
+    image: waitlist-api
     build: .
     ports:
       - "8000:8000"
     volumes:
       - ./data:/app/data
     environment:
-      - DATABASE_URL=sqlite:///./data/barbershop.db
+      - DATABASE_URL=sqlite:///./data/waitlist.db
     restart: always

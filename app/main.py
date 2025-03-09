@@ -2,16 +2,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app import models
 from app.database import engine
-from app.endpoints import users, appointments
+from app.routers import users, appointments, service_accounts
 from app.config import settings
 import uvicorn
+from contextlib import asynccontextmanager
 
-models.Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    models.Base.metadata.create_all(bind=engine)
+    yield
+
 
 app = FastAPI(
     title=settings.APP_NAME,
-    description="API for managing barbershop waitlist",
-    version="1.0.0",
+    description="API for managing appointment scheduling with service accounts",
+    version="3.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -23,12 +30,13 @@ app.add_middleware(
 )
 
 app.include_router(users.router)
+app.include_router(service_accounts.router)
 app.include_router(appointments.router)
 
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the Barbershop Waitlist API!"}
+    return {"message": f"Welcome to the {settings.APP_NAME}!"}
 
 
 if __name__ == "__main__":

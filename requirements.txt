@@ -3,11 +3,11 @@ uvicorn
 sqlalchemy
 pydantic
 pydantic_settings
+pydantic[email]
 alembic
 python-multipart
 python-jose
 passlib
 pytest
 httpx
-phone-iso3166
 ruff

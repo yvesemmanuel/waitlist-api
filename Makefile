@@ -1,4 +1,4 @@
-IMAGE_NAME = barber-api
+IMAGE_NAME = waitlist-api
 
 COMPOSE_FILE = docker-compose.yml
 
