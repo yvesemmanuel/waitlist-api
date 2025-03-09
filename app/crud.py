@@ -1,7 +1,7 @@
+import math
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text, cast, Date
 from app import models, schemas
-from datetime import datetime, timedelta, time, date, timezone
+from datetime import datetime, time, date, timezone
 from fastapi import HTTPException
 from typing import Optional, List
 
@@ -237,18 +237,8 @@ def create_appointment(db: Session, appointment: schemas.AppointmentCreate):
 
 def calculate_user_penalty(db: Session, user_id: int, service_account_id: int) -> float:
     """
-    Calculate a penalty value that represents how unreliable a user has been
-    for a specific service. Higher penalties mean the user is less reliable.
-
-    The penalty is calculated with a normalized weighted formula:
-    (total_cancellations * normalized_cancellation_weight + total_no_shows * normalized_no_show_weight) /
-    (total_cancellations + total_no_shows)
-
-    Weights are normalized to ensure the penalty always stays within 0-1 range.
-
-    If the service has disabled cancellation scoring, all users get a penalty of 0.0.
-
-    Returns a float between 0 and 1, where 0 means very reliable and 1 means unreliable.
+    Calculate a user reliability score based on appointment history.
+    Returns a value between 0-1, where 0 is completely reliable and 1 is completely unreliable.
     """
     service_account = get_service_account(db, service_account_id)
 
@@ -259,6 +249,9 @@ def calculate_user_penalty(db: Session, user_id: int, service_account_id: int) -
     no_show_weight = service_account.no_show_weight
 
     total_weight = cancellation_weight + no_show_weight
+    if total_weight == 0:
+        return 0.0
+
     normalized_cancellation_weight = cancellation_weight / total_weight
     normalized_no_show_weight = no_show_weight / total_weight
 
@@ -274,24 +267,62 @@ def calculate_user_penalty(db: Session, user_id: int, service_account_id: int) -
     if not user_appointments:
         return 0.0
 
+    total_appointments = len(user_appointments)
     total_cancellations = 0
     total_no_shows = 0
-
     for appointment in user_appointments:
         if appointment.status == models.AppointmentStatus.CANCELED:
             total_cancellations += 1
         elif appointment.status == models.AppointmentStatus.NO_SHOW:
             total_no_shows += 1
 
-    if total_cancellations + total_no_shows == 0:
+    cancellation_rate = total_cancellations / total_appointments
+    no_show_rate = total_no_shows / total_appointments
+
+    recent_penalty = _calculate_recency_weighted_penalty(user_appointments)
+
+    volume_factor = min(total_appointments, 1.0)
+
+    base_penalty = (cancellation_rate * normalized_cancellation_weight) + (
+        no_show_rate * normalized_no_show_weight
+    )
+
+    adjusted_penalty = base_penalty * (0.7 + (0.3 * recent_penalty))
+
+    reliability_score = adjusted_penalty * volume_factor
+
+    return reliability_score
+
+
+def _calculate_recency_weighted_penalty(appointments: List[models.Appointment]):
+    """
+    Calculate a penalty that weighs recent appointment behavior more heavily.
+    """
+    if not appointments:
         return 0.0
 
-    penalty = (
-        total_cancellations * normalized_cancellation_weight
-        + total_no_shows * normalized_no_show_weight
-    ) / (total_cancellations + total_no_shows)
+    sorted_appointments = sorted(appointments, key=lambda a: a.created_at, reverse=True)
 
-    return penalty
+    today = datetime.now()
+    total_weight = 0
+    weighted_penalty = 0
+
+    for appointment in sorted_appointments:
+        days_ago = (today - appointment.created_at).days
+
+        recency_weight = math.exp(-0.023 * days_ago)
+        total_weight += recency_weight
+
+        if appointment.status in [
+            models.AppointmentStatus.CANCELED,
+            models.AppointmentStatus.NO_SHOW,
+        ]:
+            penalty = (
+                1.0 if appointment.status == models.AppointmentStatus.NO_SHOW else 0.7
+            )
+            weighted_penalty += penalty * recency_weight
+
+    return weighted_penalty / total_weight if total_weight > 0 else 0.0
 
 
 def cancel_appointment(db: Session, appointment_id: int):

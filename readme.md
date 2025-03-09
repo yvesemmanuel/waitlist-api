@@ -42,26 +42,42 @@ The API implements a sophisticated waitlist system with the following features:
 The system calculates a reliability penalty for each user when they create a new appointment:
 
 - New users start with a penalty of 0.0 (perfect reliability)
-- The penalty is based on the user's history with that specific service:
-  - Number of cancellations and no-shows relative to total problematic appointments
+- The penalty is based on the user's entire appointment history with that specific service:
+  - Number of cancellations, no-shows, and successfully completed appointments
   - Cancellations and no-shows are weighted differently based on service settings
+  - Completed appointments positively affect reliability
   - Weights are automatically normalized to ensure the penalty stays within 0-1 range
 - Lower penalties get higher priority in the waitlist
 - Penalties are calculated at appointment creation time and stay with the appointment for historical tracking
 
 #### Penalty Calculation
 
-The penalty is calculated using a normalized weighted formula:
+The penalty is calculated using a sophisticated formula that considers both the user's complete appointment history and the recency of events:
 
-```
-penalty = (cancellations * normalized_cancellation_weight + no_shows * normalized_no_show_weight) / (cancellations + no_shows)
-```
+$$\text{normalized\_cancellation\_weight} = \frac{\text{cancellation\_weight}}{\text{cancellation\_weight} + \text{no\_show\_weight}}$$
 
-Where:
-- `normalized_cancellation_weight` = `cancellation_weight / (cancellation_weight + no_show_weight)`
-- `normalized_no_show_weight` = `no_show_weight / (cancellation_weight + no_show_weight)`
+$$\text{normalized\_no\_show\_weight} = \frac{\text{no\_show\_weight}}{\text{cancellation\_weight} + \text{no\_show\_weight}}$$
 
-This normalization ensures that regardless of the absolute weight values, the penalty will always be between 0 and 1.
+$$\text{cancellation\_rate} = \frac{\text{total\_cancellations}}{\text{total\_appointments}}$$
+
+$$\text{no\_show\_rate} = \frac{\text{total\_no\_shows}}{\text{total\_appointments}}$$
+
+$$\text{base\_penalty} = \text{cancellation\_rate} \times \text{normalized\_cancellation\_weight} + \text{no\_show\_rate} \times \text{normalized\_no\_show\_weight}$$
+
+$$\text{adjusted\_penalty} = \text{base\_penalty} \times (0.7 + 0.3 \times \text{recency\_penalty})$$
+
+$$\text{reliability\_score} = \text{adjusted\_penalty} \times \text{volume\_factor}$$
+
+Where the recency penalty is calculated using an exponential decay function that gives more weight to recent appointment behavior:
+
+$$\text{recency\_weight} = e^{-0.023 \times \text{days\_ago}}$$
+
+This formula provides several advantages:
+- Considers both frequency and recency of cancellations and no-shows
+- Applies different weights to cancellations and no-shows based on service account preferences
+- Gives more weight to recent behavior through exponential decay
+- Normalizes weights to ensure consistent scoring regardless of weight magnitude
+- Ensures the final score stays within 0-1 range
 
 #### Customizable Penalty System
 
@@ -69,8 +85,7 @@ Service accounts can customize how penalties are calculated:
 
 - **Enable/Disable Penalties**: Service accounts can opt out of the penalty system entirely. When disabled, all users have equal priority (penalty = 0.0).
 - **Cancellation Weight**: How much a cancellation impacts the user's penalty calculation (default: 1.0)
-- **No-Show Weight**: How much a no-show impacts the user's penalty calculation (default: 2.0) 
-- **Recency Weight**: No longer used in the simplified calculation
+- **No-Show Weight**: How much a no-show impacts the user's penalty calculation (default: 2.0)
 
 These weights allow service accounts to tailor the queue prioritization to their specific business needs.
 
