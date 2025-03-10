@@ -54,23 +54,29 @@ The system calculates a reliability penalty for each user when they create a new
 
 The penalty is calculated using a sophisticated formula that considers both the user's complete appointment history and the recency of events:
 
-$$\text{normalized\_cancellation\_weight} = \frac{\text{cancellation\_weight}}{\text{cancellation\_weight} + \text{no\_show\_weight}}$$
+```python
+# Weight normalization
+normalized_cancellation_weight = cancellation_weight / (cancellation_weight + no_show_weight)
+normalized_no_show_weight = no_show_weight / (cancellation_weight + no_show_weight)
 
-$$\text{normalized\_no\_show\_weight} = \frac{\text{no\_show\_weight}}{\text{cancellation\_weight} + \text{no\_show\_weight}}$$
+# Rate calculations
+cancellation_rate = total_cancellations / total_appointments
+no_show_rate = total_no_shows / total_appointments
 
-$$\text{cancellation\_rate} = \frac{\text{total\_cancellations}}{\text{total\_appointments}}$$
+# Penalty calculation steps
+base_penalty = (cancellation_rate * normalized_cancellation_weight + 
+                no_show_rate * normalized_no_show_weight)
+                
+adjusted_penalty = base_penalty * (0.7 + 0.3 * recency_penalty)
 
-$$\text{no\_show\_rate} = \frac{\text{total\_no\_shows}}{\text{total\_appointments}}$$
+reliability_score = adjusted_penalty * volume_factor
+```
 
-$$\text{base\_penalty} = \text{cancellation\_rate} \times \text{normalized\_cancellation\_weight} + \text{no\_show\_rate} \times \text{normalized\_no\_show\_weight}$$
+The recency penalty is calculated using an exponential decay function that gives more weight to recent appointment behavior:
 
-$$\text{adjusted\_penalty} = \text{base\_penalty} \times (0.7 + 0.3 \times \text{recency\_penalty})$$
-
-$$\text{reliability\_score} = \text{adjusted\_penalty} \times \text{volume\_factor}$$
-
-Where the recency penalty is calculated using an exponential decay function that gives more weight to recent appointment behavior:
-
-$$\text{recency\_weight} = e^{-0.023 \times \text{days\_ago}}$$
+```python
+recency_weight = math.exp(-0.023 * days_ago)
+```
 
 This formula provides several advantages:
 - Considers both frequency and recency of cancellations and no-shows
