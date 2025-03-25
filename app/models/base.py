@@ -1,7 +1,13 @@
+"""
+Base model.
+"""
+
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker, declarative_base
+from typing import List, Dict, Any, Set, Optional
+
 from app.config import settings
-from typing import List, Dict, Any, Optional, Set
+
 
 SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
@@ -9,6 +15,11 @@ engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+class BaseDict:
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
 
 
 class Base:
@@ -24,16 +35,24 @@ class Base:
         """
         Convert model instance to dictionary excluding SQLAlchemy internal attributes.
 
-        Args:
-            exclude: List of field names to exclude from the result
-            include: List of field names to include in the result (if provided, only these fields will be included)
-            include_relationships: Whether to include relationship fields
-            nested_level: Current nesting level for relationship processing
-            max_nested_level: Maximum nesting level for relationships to prevent circular references
-            visited: Set of object ids already processed to prevent circular references
+        Parameters:
+        -----------
+        exclude: List[str]
+            List of field names to exclude from the result
+        include: List[str]
+            List of field names to include in the result (if provided, only these fields will be included)
+        include_relationships: bool
+            Whether to include relationship fields
+        nested_level: int
+            Current nesting level for relationship processing
+        max_nested_level: int
+            Maximum nesting level for relationships to prevent circular references
+        visited: Set[int]
+            Set of object ids already processed to prevent circular references
 
         Returns:
-            Dictionary with model's column names and values
+        --------
+        dict: Dictionary with model's column names and values
         """
         if visited is None:
             visited = set()
@@ -98,11 +117,3 @@ class Base:
 
 
 Base = declarative_base(cls=Base)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()

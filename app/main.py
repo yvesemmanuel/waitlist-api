@@ -1,16 +1,22 @@
+"""
+Main file for the application.
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app import models
-from app.database import engine
-from app.routers import users, appointments, service_accounts
+from app.models.database import engine
+
+from app.routers.routers import router
+from app.models.base import Base
 from app.config import settings
+
 import uvicorn
 from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    models.Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield
 
 
@@ -29,9 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(users.router)
-app.include_router(service_accounts.router)
-app.include_router(appointments.router)
+app.include_router(router)
 
 
 @app.get("/")

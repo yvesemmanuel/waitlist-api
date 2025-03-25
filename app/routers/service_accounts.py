@@ -1,9 +1,23 @@
-from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.orm import Session
-from typing import List, Optional
+"""
+Service account routers.
+"""
 
-from app import crud, schemas
-from app.database import get_db
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+from typing import List
+
+from app.models.database import get_db
+from app.schemas import (
+    ServiceAccount,
+    ServiceAccountCreate,
+    ServiceAccountUpdate,
+    ServiceAccountWithAppointments,
+    APIResponse,
+)
+from app.services import (
+    ServiceAccountService,
+    AppointmentService,
+)
 
 router = APIRouter(
     prefix="/service-accounts",
@@ -14,16 +28,16 @@ router = APIRouter(
 
 @router.post(
     "/",
-    response_model=schemas.APIResponse[schemas.ServiceAccount],
+    response_model=APIResponse[ServiceAccount],
     status_code=status.HTTP_201_CREATED,
 )
 async def create_service_account(
-    service_account: schemas.ServiceAccountCreate, db: Session = Depends(get_db)
+    service_account: ServiceAccountCreate, db: Session = Depends(get_db)
 ):
-    db_service_account = crud.create_service_account(
+    db_service_account = ServiceAccountService.create_service_account(
         db=db, service_account=service_account
     )
-    return schemas.APIResponse(
+    return APIResponse(
         message="Service account created successfully",
         data=db_service_account.to_dict(),
     )
@@ -31,14 +45,16 @@ async def create_service_account(
 
 @router.get(
     "/",
-    response_model=schemas.APIResponse[List[schemas.ServiceAccount]],
+    response_model=APIResponse[List[ServiceAccount]],
     status_code=status.HTTP_200_OK,
 )
 async def read_service_accounts(
     skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
 ):
-    service_accounts = crud.get_service_accounts(db=db, skip=skip, limit=limit)
-    return schemas.APIResponse(
+    service_accounts = ServiceAccountService.get_service_accounts(
+        db=db, skip=skip, limit=limit
+    )
+    return APIResponse(
         message="Service accounts retrieved successfully",
         data=[account.to_dict() for account in service_accounts],
     )
@@ -46,14 +62,14 @@ async def read_service_accounts(
 
 @router.get(
     "/{service_account_id}",
-    response_model=schemas.APIResponse[schemas.ServiceAccountWithAppointments],
+    response_model=APIResponse[ServiceAccountWithAppointments],
     status_code=status.HTTP_200_OK,
 )
 async def read_service_account(service_account_id: int, db: Session = Depends(get_db)):
-    service_account = crud.get_service_account(
+    service_account = ServiceAccountService.get_service_account(
         db=db, service_account_id=service_account_id
     )
-    service_appointments = crud.get_service_account_appointments(
+    service_appointments = AppointmentService.get_service_account_appointments(
         db=db, service_account_id=service_account_id
     )
 
@@ -62,7 +78,7 @@ async def read_service_account(service_account_id: int, db: Session = Depends(ge
         appointment.to_dict() for appointment in service_appointments
     ]
 
-    return schemas.APIResponse(
+    return APIResponse(
         message=f"Service account with id {service_account_id} retrieved successfully",
         data=service_data,
     )
@@ -70,18 +86,18 @@ async def read_service_account(service_account_id: int, db: Session = Depends(ge
 
 @router.put(
     "/{service_account_id}",
-    response_model=schemas.APIResponse[schemas.ServiceAccount],
+    response_model=APIResponse[ServiceAccount],
     status_code=status.HTTP_200_OK,
 )
 async def update_service_account(
     service_account_id: int,
-    service_account: schemas.ServiceAccountUpdate,
+    service_account: ServiceAccountUpdate,
     db: Session = Depends(get_db),
 ):
-    updated_account = crud.update_service_account(
+    updated_account = ServiceAccountService.update_service_account(
         db=db, service_account_id=service_account_id, service_account=service_account
     )
-    return schemas.APIResponse(
+    return APIResponse(
         message=f"Service account with id {service_account_id} updated successfully",
         data=updated_account.to_dict(),
     )
@@ -94,5 +110,7 @@ async def update_service_account(
 async def delete_service_account(
     service_account_id: int, db: Session = Depends(get_db)
 ):
-    crud.delete_service_account(db=db, service_account_id=service_account_id)
+    ServiceAccountService.delete_service_account(
+        db=db, service_account_id=service_account_id
+    )
     return None

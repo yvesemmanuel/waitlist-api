@@ -138,12 +138,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Initialize the database and run migrations**:
-```bash
-alembic upgrade head
-```
-
-5. **Start the API server**:
+4. **Start the API server**:
 ```bash
 # Development env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -262,7 +257,6 @@ waitlist_api/
 │   │   ├── __init__.py
 │   │   ├── users.py
 │   │   ├── appointments.py
-├── alembic/
 │   ├── versions/
 │   ├── env.py
 ├── tests/

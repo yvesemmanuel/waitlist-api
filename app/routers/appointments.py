@@ -1,10 +1,20 @@
+"""
+Appointment routers.
+"""
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
 
-from app import crud, schemas
-from app.database import get_db
+from app.schemas import (
+    Appointment,
+    AppointmentCreate,
+    AppointmentDetail,
+    APIResponse,
+)
+from app.services import AppointmentService
+from app.models.database import get_db
 
 router = APIRouter(
     prefix="/appointments",
@@ -15,21 +25,23 @@ router = APIRouter(
 
 @router.post(
     "/",
-    response_model=schemas.APIResponse[schemas.Appointment],
+    response_model=APIResponse[Appointment],
     status_code=status.HTTP_201_CREATED,
 )
 async def create_appointment(
-    appointment: schemas.AppointmentCreate, db: Session = Depends(get_db)
+    appointment: AppointmentCreate, db: Session = Depends(get_db)
 ):
-    appointment_model = crud.create_appointment(db=db, appointment=appointment)
-    return schemas.APIResponse(
+    appointment_model = AppointmentService.create_appointment(
+        db=db, appointment=appointment
+    )
+    return APIResponse(
         message="Appointment created successfully", data=appointment_model.to_dict()
     )
 
 
 @router.get(
     "/",
-    response_model=schemas.APIResponse[List[schemas.Appointment]],
+    response_model=APIResponse[List[Appointment]],
     status_code=status.HTTP_200_OK,
 )
 async def read_appointments(
@@ -52,7 +64,7 @@ async def read_appointments(
     This creates a queue where users who frequently cancel or no-show
     are deprioritized compared to reliable users.
     """
-    ranked_appointments = crud.get_ranked_appointments_for_service_account(
+    ranked_appointments = AppointmentService.get_ranked_appointments(
         db=db,
         service_account_id=service_account_id,
         day=day,
@@ -60,7 +72,7 @@ async def read_appointments(
         skip=skip,
         limit=limit,
     )
-    return schemas.APIResponse(
+    return APIResponse(
         message="Appointments queue retrieved successfully",
         data=[appointment.to_dict() for appointment in ranked_appointments],
     )
@@ -68,12 +80,14 @@ async def read_appointments(
 
 @router.get(
     "/{appointment_id}",
-    response_model=schemas.APIResponse[schemas.AppointmentDetail],
+    response_model=APIResponse[AppointmentDetail],
     status_code=status.HTTP_200_OK,
 )
 async def read_appointment(appointment_id: int, db: Session = Depends(get_db)):
-    appointment_detail = crud.get_appointment_detail(db, appointment_id=appointment_id)
-    return schemas.APIResponse(
+    appointment_detail = AppointmentService.get_appointment_detail(
+        db, appointment_id=appointment_id
+    )
+    return APIResponse(
         message=f"Appointment {appointment_id} details retrieved successfully",
         data=appointment_detail,
     )
@@ -81,12 +95,14 @@ async def read_appointment(appointment_id: int, db: Session = Depends(get_db)):
 
 @router.delete(
     "/{appointment_id}",
-    response_model=schemas.APIResponse[schemas.Appointment],
+    response_model=APIResponse[Appointment],
     status_code=status.HTTP_200_OK,
 )
 async def cancel_appointment(appointment_id: int, db: Session = Depends(get_db)):
-    cancelled_appointment = crud.cancel_appointment(db, appointment_id=appointment_id)
-    return schemas.APIResponse(
+    cancelled_appointment = AppointmentService.cancel_appointment(
+        db, appointment_id=appointment_id
+    )
+    return APIResponse(
         message=f"Appointment {appointment_id} cancelled successfully",
         data=cancelled_appointment.to_dict(),
     )
@@ -94,12 +110,14 @@ async def cancel_appointment(appointment_id: int, db: Session = Depends(get_db))
 
 @router.put(
     "/{appointment_id}/complete",
-    response_model=schemas.APIResponse[schemas.Appointment],
+    response_model=APIResponse[Appointment],
     status_code=status.HTTP_200_OK,
 )
 async def complete_appointment(appointment_id: int, db: Session = Depends(get_db)):
-    completed_appointment = crud.complete_appointment(db, appointment_id=appointment_id)
-    return schemas.APIResponse(
+    completed_appointment = AppointmentService.complete_appointment(
+        db, appointment_id=appointment_id
+    )
+    return APIResponse(
         message=f"Appointment {appointment_id} marked as completed",
         data=completed_appointment.to_dict(),
     )
@@ -107,12 +125,14 @@ async def complete_appointment(appointment_id: int, db: Session = Depends(get_db
 
 @router.put(
     "/{appointment_id}/no-show",
-    response_model=schemas.APIResponse[schemas.Appointment],
+    response_model=APIResponse[Appointment],
     status_code=status.HTTP_200_OK,
 )
 async def mark_no_show(appointment_id: int, db: Session = Depends(get_db)):
-    no_show_appointment = crud.mark_no_show(db, appointment_id=appointment_id)
-    return schemas.APIResponse(
+    no_show_appointment = AppointmentService.mark_no_show(
+        db, appointment_id=appointment_id
+    )
+    return APIResponse(
         message=f"Appointment {appointment_id} marked as no-show",
         data=no_show_appointment.to_dict(),
     )

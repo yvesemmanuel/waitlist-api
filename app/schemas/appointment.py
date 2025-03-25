@@ -1,95 +1,14 @@
-from pydantic import BaseModel, field_validator, EmailStr, ConfigDict
+"""
+Appointment schemas.
+"""
+
+from typing import Optional, List
 from datetime import datetime, time, timezone
-from typing import Optional, List, Any, Generic, TypeVar
-import re
-from app.models import AppointmentStatus
+from pydantic import BaseModel, field_validator, ConfigDict
 
-T = TypeVar("T")
-
-
-class APIResponse(BaseModel, Generic[T]):
-    success: bool = True
-    message: str
-    data: Optional[T] = None
-    error: Optional[str] = None
-
-
-class APIErrorResponse(BaseModel):
-    success: bool = False
-    message: str = "An error occurred"
-    error: str
-    data: Optional[Any] = None
-
-
-class PersonBase(BaseModel):
-    name: str
-    phone: str
-    email: Optional[EmailStr] = None
-
-    @field_validator("phone")
-    def validate_phone(cls, v):
-        if not re.match(r"^\+\d{1,3}\d{6,14}$", v):
-            raise ValueError(
-                "Phone must be in the international format +[country_code][number]"
-            )
-        return v
-
-
-class UserCreate(PersonBase):
-    pass
-
-
-class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = None
-
-    @field_validator("phone")
-    def validate_no_phone_change(cls, v):
-        if v is not None:
-            raise ValueError("Phone number cannot be changed")
-        return v
-
-
-class User(PersonBase):
-    id: int
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class ServiceAccountCreate(PersonBase):
-    description: Optional[str] = None
-    enable_cancellation_scoring: bool = True
-    cancellation_weight: float = 1.0
-    no_show_weight: float = 2.0
-
-
-class ServiceAccountUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    description: Optional[str] = None
-    phone: Optional[str] = None
-    enable_cancellation_scoring: Optional[bool] = None
-    cancellation_weight: Optional[float] = None
-    no_show_weight: Optional[float] = None
-
-    @field_validator("phone")
-    def validate_no_phone_change(cls, v):
-        if v is not None:
-            raise ValueError("Phone number cannot be changed")
-        return v
-
-
-class ServiceAccount(PersonBase):
-    id: int
-    description: Optional[str] = None
-    created_at: datetime
-    enable_cancellation_scoring: bool = True
-    cancellation_weight: float = 1.0
-    no_show_weight: float = 2.0
-
-    model_config = ConfigDict(from_attributes=True)
+from app.models.appointment import AppointmentStatus
+from app.schemas.user import User
+from app.schemas.service_account import ServiceAccount
 
 
 class AppointmentBase(BaseModel):
