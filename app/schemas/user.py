@@ -6,10 +6,10 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, field_validator, EmailStr, ConfigDict
 
-from app.schemas.person import PersonBase
+from app.schemas.base import BaseAccount
 
 
-class UserCreate(PersonBase):
+class UserCreate(BaseAccount):
     pass
 
 
@@ -25,7 +25,7 @@ class UserUpdate(BaseModel):
         return v
 
 
-class User(PersonBase):
+class User(BaseAccount):
     id: int
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)

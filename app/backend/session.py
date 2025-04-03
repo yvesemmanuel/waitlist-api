@@ -1,5 +1,5 @@
 """
-Database settings.
+Session.
 """
 
 from sqlalchemy import create_engine

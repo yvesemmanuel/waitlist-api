@@ -38,5 +38,5 @@ class User(Base, BaseDict):
     description = Column(Text, nullable=True)
 
     appointments = relationship(
-        "Appointment", foreign_keys="[Appointment.user_id]", back_populates="user"
+        "Appointment", foreign_keys="[Appointment.user_phone]", back_populates="user"
     )

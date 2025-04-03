@@ -14,7 +14,7 @@ from app.schemas import (
     APIResponse,
 )
 from app.services import AppointmentService
-from app.models.database import get_db
+from app.backend.session import get_db
 
 router = APIRouter(
     prefix="/appointments",
@@ -45,11 +45,13 @@ async def create_appointment(
     status_code=status.HTTP_200_OK,
 )
 async def read_appointments(
-    service_account_id: int = Query(..., description="The service account ID"),
+    service_account_phone: str = Query(..., description="The service account phone"),
     day: Optional[date] = Query(
         None, description="Optional: Filter by day (YYYY-MM-DD)"
     ),
-    user_id: Optional[int] = None,
+    user_phone: Optional[str] = Query(
+        None, description="Optional: Filter by user phone"
+    ),
     db: Session = Depends(get_db),
     skip: int = 0,
     limit: int = 100,
@@ -66,9 +68,9 @@ async def read_appointments(
     """
     ranked_appointments = AppointmentService.get_ranked_appointments(
         db=db,
-        service_account_id=service_account_id,
+        service_account_phone=service_account_phone,
         day=day,
-        user_id=user_id,
+        user_phone=user_phone,
         skip=skip,
         limit=limit,
     )

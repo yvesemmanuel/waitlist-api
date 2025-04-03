@@ -1,6 +1,6 @@
-import pytest
-
-from app.main import app
+"""
+Service account routers tests.
+"""
 
 
 def test_create_service_account(client):
@@ -20,7 +20,6 @@ def test_create_service_account(client):
     assert data["name"] == "Test Service Account"
     assert data["phone"] == "+5511987654322"
     assert data["description"] == "A test service account"
-    assert "id" in data
 
 
 def test_create_service_account_with_invalid_phone(client):
@@ -46,9 +45,9 @@ def test_get_service_account(client):
             "description": "A test service",
         },
     )
-    service_account_id = create_response.json()["data"]["id"]
+    service_account_phone = create_response.json()["data"]["phone"]
 
-    response = client.get(f"/service-accounts/{service_account_id}")
+    response = client.get(f"/service-accounts/{service_account_phone}")
     assert response.status_code == 200
     res = response.json()
     data = res["data"]
@@ -97,10 +96,10 @@ def test_update_service_account(client):
             "description": "A test service",
         },
     )
-    service_id = create_response.json()["data"]["id"]
+    service_phone = create_response.json()["data"]["phone"]
 
     response = client.put(
-        f"/service-accounts/{service_id}",
+        f"/service-accounts/{service_phone}",
         json={
             "name": "Updated Service",
             "description": "An updated service description",
@@ -124,10 +123,10 @@ def test_cannot_update_service_account_phone(client):
             "description": "A test service",
         },
     )
-    service_id = create_response.json()["data"]["id"]
+    service_phone = create_response.json()["data"]["phone"]
 
     response = client.put(
-        f"/service-accounts/{service_id}",
+        f"/service-accounts/{service_phone}",
         json={"phone": "+5511987654323"},
     )
     assert response.status_code == 422
@@ -144,10 +143,10 @@ def test_delete_service_account(client):
             "description": "A test service",
         },
     )
-    service_id = create_response.json()["data"]["id"]
+    service_phone = create_response.json()["data"]["phone"]
 
-    response = client.delete(f"/service-accounts/{service_id}")
+    response = client.delete(f"/service-accounts/{service_phone}")
     assert response.status_code == 204
 
-    response = client.get(f"/service-accounts/{service_id}")
+    response = client.get(f"/service-accounts/{service_phone}")
     assert response.status_code == 404

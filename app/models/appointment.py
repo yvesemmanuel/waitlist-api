@@ -10,6 +10,7 @@ from sqlalchemy import (
     Enum,
     Text,
     Float,
+    String,
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -30,8 +31,8 @@ class Appointment(Base, BaseDict):
     __tablename__ = "appointments"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    service_account_id = Column(Integer, ForeignKey("service_accounts.id"))
+    user_phone = Column(String, ForeignKey("users.phone"))
+    service_account_phone = Column(String, ForeignKey("service_accounts.phone"))
     appointment_date = Column(DateTime, nullable=False)
     status = Column(Enum(AppointmentStatus), default=AppointmentStatus.ACTIVE)
     duration_minutes = Column(Integer, default=30)
@@ -39,9 +40,11 @@ class Appointment(Base, BaseDict):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     penalty = Column(Float, default=0.0)
 
-    user = relationship("User", foreign_keys=[user_id], back_populates="appointments")
+    user = relationship(
+        "User", foreign_keys=[user_phone], back_populates="appointments"
+    )
     service_account = relationship(
         "ServiceAccount",
-        foreign_keys=[service_account_id],
+        foreign_keys=[service_account_phone],
         back_populates="appointments",
     )

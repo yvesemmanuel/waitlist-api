@@ -1,5 +1,5 @@
 """
-Person schemas.
+Base schemas.
 """
 
 import re
@@ -7,7 +7,7 @@ from typing import Optional
 from pydantic import BaseModel, field_validator, EmailStr
 
 
-class PersonBase(BaseModel):
+class BaseAccount(BaseModel):
     name: str
     phone: str
     email: Optional[EmailStr] = None

@@ -13,6 +13,7 @@ from typing import Optional, List
 
 from app.services.user import UserService
 from app.services.service_account import ServiceAccountService
+from app.exceptions import AppointmentAlreadyExists
 
 
 class AppointmentService:
@@ -65,9 +66,9 @@ class AppointmentService:
             Combined appointment details with user and service account information
         """
         db_appointment = AppointmentService.get_appointment(db, appointment_id)
-        user = UserService.get_user(db, db_appointment.user_id)
+        user = UserService.get_user(db, db_appointment.user_phone)
         service_account = ServiceAccountService.get_service_account(
-            db, db_appointment.service_account_id
+            db, db_appointment.service_account_phone
         )
 
         return {
@@ -80,8 +81,8 @@ class AppointmentService:
     def get_appointments_for_day(
         db: Session,
         day: date,
-        service_account_id: Optional[int] = None,
-        user_id: Optional[int] = None,
+        service_account_phone: Optional[str] = None,
+        user_phone: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
     ) -> List[Appointment]:
@@ -93,10 +94,10 @@ class AppointmentService:
             Database session
         day: date
             Date to filter appointments
-        service_account_id: Optional[int]
-            Filter by service account ID
-        user_id: Optional[int]
-            Filter by user ID
+        service_account_phone: Optional[str]
+            Filter by service account phone
+        user_phone: Optional[str]
+            Filter by user phone
         skip: int
             Number of records to skip
         limit: int
@@ -115,11 +116,13 @@ class AppointmentService:
             Appointment.appointment_date <= end_of_day,
         )
 
-        if service_account_id:
-            query = query.filter(Appointment.service_account_id == service_account_id)
+        if service_account_phone:
+            query = query.filter(
+                Appointment.service_account_phone == service_account_phone
+            )
 
-        if user_id:
-            query = query.filter(Appointment.user_id == user_id)
+        if user_phone:
+            query = query.filter(Appointment.user_phone == user_phone)
 
         return query.offset(skip).limit(limit).all()
 
@@ -143,9 +146,9 @@ class AppointmentService:
         -------
         HTTPException: 400 if duplicate appointment exists
         """
-        user = UserService.get_user(db, appointment.user_id)
+        user = UserService.get_user(db, appointment.user_phone)
         service_account = ServiceAccountService.get_service_account(
-            db, appointment.service_account_id
+            db, appointment.service_account_phone
         )
 
         appointment_day_start = datetime.combine(
@@ -159,7 +162,7 @@ class AppointmentService:
         existing = (
             db.query(Appointment)
             .filter(
-                Appointment.user_id == user.id,
+                Appointment.user_phone == user.phone,
                 Appointment.status == AppointmentStatus.ACTIVE,
                 Appointment.appointment_date >= appointment_day_start,
                 Appointment.appointment_date <= appointment_day_end,
@@ -168,13 +171,10 @@ class AppointmentService:
         )
 
         if existing:
-            raise HTTPException(
-                status_code=400,
-                detail="You already have an appointment scheduled for this day",
-            )
+            raise AppointmentAlreadyExists(user.phone)
 
         penalty = AppointmentService.calculate_user_penalty(
-            db, user.id, service_account.id
+            db, user.phone, service_account.phone
         )
 
         db_appointment = Appointment(
@@ -190,7 +190,7 @@ class AppointmentService:
 
     @staticmethod
     def calculate_user_penalty(
-        db: Session, user_id: int, service_account_id: int
+        db: Session, user_phone: str, service_account_phone: str
     ) -> float:
         """Calculate user reliability score based on historical behavior.
 
@@ -198,10 +198,10 @@ class AppointmentService:
         -----------
         db: Session
             Database session
-        user_id: int
-            Target user ID
-        service_account_id: int
-            Service account ID
+        user_phone: str
+            Target user phone
+        service_account_phone: str
+            Service account phone
 
         Returns:
         --------
@@ -209,7 +209,7 @@ class AppointmentService:
             Penalty score between 0 (reliable) and 1 (unreliable)
         """
         service_account = ServiceAccountService.get_service_account(
-            db, service_account_id
+            db, service_account_phone
         )
 
         if not service_account.enable_cancellation_scoring:
@@ -218,8 +218,8 @@ class AppointmentService:
         history = (
             db.query(Appointment)
             .filter(
-                Appointment.user_id == user_id,
-                Appointment.service_account_id == service_account_id,
+                Appointment.user_phone == user_phone,
+                Appointment.service_account_phone == service_account_phone,
             )
             .all()
         )
@@ -316,19 +316,19 @@ class AppointmentService:
         db_appointment = AppointmentService.get_appointment(db, appointment_id)
 
         if new_status == AppointmentStatus.CANCELED:
-            if db_status != AppointmentStatus.ACTIVE:
+            if db_appointment.status != AppointmentStatus.ACTIVE:
                 raise HTTPException(
                     status_code=400, detail="Only active appointments can be canceled"
                 )
 
-        db_status = new_status
+        db_appointment.status = new_status
         db.commit()
         db.refresh(db_appointment)
         return db_appointment
 
     @staticmethod
     def get_user_appointments(
-        db: Session, user_id: int, skip: int = 0, limit: int = 100
+        db: Session, user_phone: str, skip: int = 0, limit: int = 100
     ) -> List[Appointment]:
         """Get paginated appointments for a specific user.
 
@@ -336,8 +336,8 @@ class AppointmentService:
         -----------
         db: Session
             Database session
-        user_id: int
-            Target user ID
+        user_phone: str
+            Target user phone
         skip: int
             Number of records to skip
         limit: int
@@ -348,10 +348,10 @@ class AppointmentService:
         List[Appointment]
             List of user's appointments
         """
-        UserService.get_user(db, user_id)
+        UserService.get_user(db, user_phone)
         return (
             db.query(Appointment)
-            .filter(Appointment.user_id == user_id)
+            .filter(Appointment.user_phone == user_phone)
             .offset(skip)
             .limit(limit)
             .all()
@@ -359,7 +359,7 @@ class AppointmentService:
 
     @staticmethod
     def get_service_account_appointments(
-        db: Session, service_account_id: int, skip: int = 0, limit: int = 100
+        db: Session, service_account_phone: str, skip: int = 0, limit: int = 100
     ) -> List[Appointment]:
         """Get paginated appointments for a service account.
 
@@ -367,8 +367,8 @@ class AppointmentService:
         -----------
         db: Session
             Database session
-        service_account_id: int
-            Target service account ID
+        service_account_phone: str
+            Target service account phone
         skip: int
             Number of records to skip
         limit: int
@@ -379,10 +379,10 @@ class AppointmentService:
         List[Appointment]
             List of service account's appointments
         """
-        ServiceAccountService.get_service_account(db, service_account_id)
+        ServiceAccountService.get_service_account(db, service_account_phone)
         return (
             db.query(Appointment)
-            .filter(Appointment.service_account_id == service_account_id)
+            .filter(Appointment.service_account_phone == service_account_phone)
             .offset(skip)
             .limit(limit)
             .all()
@@ -391,9 +391,9 @@ class AppointmentService:
     @staticmethod
     def get_ranked_appointments(
         db: Session,
-        service_account_id: int,
+        service_account_phone: str,
         day: Optional[date] = None,
-        user_id: Optional[int] = None,
+        user_phone: Optional[str] = None,
         skip: int = 0,
         limit: int = 100,
     ) -> List[Appointment]:
@@ -403,12 +403,12 @@ class AppointmentService:
         -----------
         db: Session
             Database session
-        service_account_id: int
-            Target service account ID
+        service_account_phone: str
+            Target service account phone
         day: Optional[date]
             Filter for specific day
-        user_id: Optional[int]
-            Filter for specific user
+        user_phone: Optional[str]
+            Filter for specific user phone
         skip: int
             Number of records to skip
         limit: int
@@ -420,12 +420,12 @@ class AppointmentService:
             Prioritized list of appointments
         """
         base_query = db.query(Appointment).filter(
-            Appointment.service_account_id == service_account_id,
+            Appointment.service_account_phone == service_account_phone,
             Appointment.status == AppointmentStatus.ACTIVE,
         )
 
-        if user_id:
-            base_query = base_query.filter(Appointment.user_id == user_id)
+        if user_phone:
+            base_query = base_query.filter(Appointment.user_phone == user_phone)
 
         if day:
             day_start = datetime.combine(day, time.min).replace(tzinfo=timezone.utc)
@@ -435,8 +435,9 @@ class AppointmentService:
                 Appointment.appointment_date <= day_end,
             )
         else:
-            today = datetime.now(timezone.utc)
-            base_query = base_query.filter(Appointment.appointment_date >= today)
+            today = datetime.now(timezone.utc).date()
+            today_start = datetime.combine(today, time.min).replace(tzinfo=timezone.utc)
+            base_query = base_query.filter(Appointment.appointment_date >= today_start)
 
         appointments = base_query.all()
         sorted_appointments = sorted(
@@ -520,17 +521,17 @@ class AppointmentService:
 
     @staticmethod
     def get_user_appointments(
-        db: Session, user_id: int, skip: int = 0, limit: int = 100
+        db: Session, user_phone: str, skip: int = 0, limit: int = 100
     ) -> List[Appointment]:
         """Get paginated appointments for a specific user.
 
         Parameters:
         -----------
         """
-        UserService.get_user(db, user_id)
+        UserService.get_user(db, user_phone)
         return (
             db.query(Appointment)
-            .filter(Appointment.user_id == user_id)
+            .filter(Appointment.user_phone == user_phone)
             .offset(skip)
             .limit(limit)
             .all()

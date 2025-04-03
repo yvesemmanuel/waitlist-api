@@ -18,7 +18,7 @@ from app.schemas.service_account import (
 )
 
 from app.schemas.user import (
-    PersonBase,
+    BaseAccount,
     User,
     UserCreate,
     UserUpdate,
@@ -26,10 +26,9 @@ from app.schemas.user import (
 
 from app.schemas.response import (
     APIResponse,
-    APIErrorResponse,
 )
 
-from app.schemas.person import PersonBase
+from app.schemas.base import BaseAccount
 
 
 __all__ = [
@@ -42,11 +41,10 @@ __all__ = [
     "ServiceAccount",
     "ServiceAccountCreate",
     "ServiceAccountUpdate",
-    "PersonBase",
+    "BaseAccount",
     "User",
     "UserCreate",
     "UserUpdate",
     "APIResponse",
-    "APIErrorResponse",
-    "PersonBase",
+    "BaseAccount",
 ]

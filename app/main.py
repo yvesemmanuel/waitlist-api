@@ -4,7 +4,7 @@ Main file for the application.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.models.database import engine
+from app.backend.session import engine
 
 from app.routers.routers import router
 from app.models.base import Base

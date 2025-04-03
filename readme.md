@@ -8,31 +8,27 @@ The Waitlist API provides a streamlined system for booking and managing appointm
 
 ### Core Features
 
-- **User & Service Management**: Complete user and service provider (service account) management
-- **Appointment Scheduling**: Book, cancel, complete, and track appointments
-- **Intelligent Waitlist System**: Queue prioritization based on user reliability
-- **Data Validation**: Comprehensive input validation with Pydantic
+- **User & Service Account Management**: Complete user and service provider account management using phone numbers as identifiers
+- **Appointment Scheduling**: Book, cancel, complete, and mark no-show appointments
+- **Intelligent Waitlist System**: Queue prioritization based on user reliability scores
+- **Data Validation**: Comprehensive input validation with Pydantic v2
 - **Standardized Response Format**: Consistent API responses with proper error handling
-- **Modern Architecture**: Built with FastAPI, SQLAlchemy, and Pydantic
 
 ## 🏗️ Data Model
 
 The API uses a simplified and intuitive data model:
 
-1. **Users**: Regular users who can book appointments
-2. **Service Accounts**: Special type of user that provides services
-3. **Appointments**: Bookings between users and service accounts
-
-This streamlined model simplifies the previous concept that had separate entities for services and providers.
+1. **Users**: Regular users who can book appointments (identified by phone number)
+2. **Service Accounts**: Providers that offer services (identified by phone number)
+3. **Appointments**: Bookings between users and service accounts with status tracking
 
 ## ⚙️ Waitlist System
 
 The API implements a sophisticated waitlist system with the following features:
 
-- **One Appointment Per Day**: Users can only have one active appointment per day for a specific service
-- **Day-Based Scheduling**: Appointments are booked for specific days, not exact times
-- **Reliability Penalty System**: Users who have a history of cancellations or no-shows receive a higher penalty value
-- **Priority Ranking**: The waitlist for each service is automatically ranked by:
+- **One Appointment Per Day**: Users can only have one active appointment per day with any service account
+- **Reliability Penalty System**: Users with a history of cancellations or no-shows receive a higher penalty value
+- **Priority Ranking**: The waitlist for each service account is automatically ranked by:
   1. User reliability (lower penalty = higher priority)
   2. Appointment creation time (earlier = higher priority)
 - **No-Show Impact**: No-shows have a greater impact on future penalties than cancellations
@@ -42,58 +38,19 @@ The API implements a sophisticated waitlist system with the following features:
 The system calculates a reliability penalty for each user when they create a new appointment:
 
 - New users start with a penalty of 0.0 (perfect reliability)
-- The penalty is based on the user's entire appointment history with that specific service:
-  - Number of cancellations, no-shows, and successfully completed appointments
-  - Cancellations and no-shows are weighted differently based on service settings
-  - Completed appointments positively affect reliability
-  - Weights are automatically normalized to ensure the penalty stays within 0-1 range
+- The penalty is based on the user's appointment history with that specific service account:
+  - Cancellations and no-shows increase the penalty score
+  - Weights are customizable by each service account
+  - Recent behavior has more impact than older history (exponential decay)
 - Lower penalties get higher priority in the waitlist
-- Penalties are calculated at appointment creation time and stay with the appointment for historical tracking
-
-#### Penalty Calculation
-
-The penalty is calculated using a sophisticated formula that considers both the user's complete appointment history and the recency of events:
-
-```python
-# Weight normalization
-normalized_cancellation_weight = cancellation_weight / (cancellation_weight + no_show_weight)
-normalized_no_show_weight = no_show_weight / (cancellation_weight + no_show_weight)
-
-# Rate calculations
-cancellation_rate = total_cancellations / total_appointments
-no_show_rate = total_no_shows / total_appointments
-
-# Penalty calculation steps
-base_penalty = (cancellation_rate * normalized_cancellation_weight + 
-                no_show_rate * normalized_no_show_weight)
-                
-adjusted_penalty = base_penalty * (0.7 + 0.3 * recency_penalty)
-
-reliability_score = adjusted_penalty * volume_factor
-```
-
-The recency penalty is calculated using an exponential decay function that gives more weight to recent appointment behavior:
-
-```python
-recency_weight = math.exp(-0.023 * days_ago)
-```
-
-This formula provides several advantages:
-- Considers both frequency and recency of cancellations and no-shows
-- Applies different weights to cancellations and no-shows based on service account preferences
-- Gives more weight to recent behavior through exponential decay
-- Normalizes weights to ensure consistent scoring regardless of weight magnitude
-- Ensures the final score stays within 0-1 range
 
 #### Customizable Penalty System
 
 Service accounts can customize how penalties are calculated:
 
-- **Enable/Disable Penalties**: Service accounts can opt out of the penalty system entirely. When disabled, all users have equal priority (penalty = 0.0).
-- **Cancellation Weight**: How much a cancellation impacts the user's penalty calculation (default: 1.0)
-- **No-Show Weight**: How much a no-show impacts the user's penalty calculation (default: 2.0)
-
-These weights allow service accounts to tailor the queue prioritization to their specific business needs.
+- **Enable/Disable Penalties**: Service accounts can opt out of the penalty system entirely
+- **Cancellation Weight**: How much a cancellation impacts the user's penalty (default: 1.0)
+- **No-Show Weight**: How much a no-show impacts the user's penalty (default: 2.0)
 
 ## 🔄 Appointment Status Flow
 
@@ -110,12 +67,9 @@ Appointments follow this status progression:
 
 - Python 3.9+
 - pip (Python package manager)
-- Docker and Docker Compose (optional, for containerized deployment)
-- Git
+- Supported database (PostgreSQL recommended)
 
 ### Installation
-
-#### Option 1: Running Locally with Python
 
 1. **Clone the repository**:
 ```bash
@@ -138,37 +92,21 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. **Start the API server**:
+4. **Set up environment variables**:
+Create a `.env` file with your database connection string and other settings:
+```
+DATABASE_URL=postgresql+asyncpg://user:password@localhost/waitlist
+SECRET_KEY=your_secret_key
+```
+
+5. **Start the API server**:
 ```bash
-# Development env
+# Development mode
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Production env
+# Production mode
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-
-#### Option 2: Running with Docker
-
-The project includes a Makefile for simplified Docker operations:
-
-```bash
-make dev      # Start in development mode
-make prod     # Start in production mode
-make down     # Stop containers
-make cleanup  # Stop and remove containers
-make logs     # View logs
-make rebuild  # Rebuild and restart containers
-```
-
-### Migrating from Previous Version
-
-If upgrading from a previous version, run the migration script:
-
-```bash
-python -m app.migrate_data
-```
-
-This will convert existing services and providers to the new service account model.
 
 ## 📚 API Documentation
 
@@ -184,12 +122,20 @@ Once the server is running, access the interactive API documentation:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/users/` | Create a new regular user |
-| POST | `/users/service-accounts` | Create a new service account |
 | GET | `/users/` | List all users |
-| GET | `/users/service-accounts` | List service accounts only |
-| GET | `/users/{user_id}` | Get details for a specific user |
-| PUT | `/users/{user_id}` | Update a user |
-| DELETE | `/users/{user_id}` | Delete a user |
+| GET | `/users/{phone}` | Get details for a specific user |
+| PUT | `/users/{phone}` | Update a user |
+| DELETE | `/users/{phone}` | Delete a user |
+
+### Service Accounts
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/service-accounts/` | Create a new service account |
+| GET | `/service-accounts/` | List all service accounts |
+| GET | `/service-accounts/{phone}` | Get details for a specific service account |
+| PUT | `/service-accounts/{phone}` | Update a service account |
+| DELETE | `/service-accounts/{phone}` | Delete a service account |
 
 ### Appointments
 
@@ -197,10 +143,10 @@ Once the server is running, access the interactive API documentation:
 |--------|----------|-------------|
 | POST | `/appointments/` | Create a new appointment |
 | GET | `/appointments/` | Get appointments for a service account as a prioritized queue |
-| GET | `/appointments/{appointment_id}` | Get details for a specific appointment |
-| DELETE | `/appointments/{appointment_id}` | Cancel an appointment |
-| PUT | `/appointments/{appointment_id}/complete` | Mark an appointment as completed |
-| PUT | `/appointments/{appointment_id}/no-show` | Mark a user as no-show |
+| GET | `/appointments/{id}` | Get details for a specific appointment |
+| DELETE | `/appointments/{id}` | Cancel an appointment |
+| PUT | `/appointments/{id}/complete` | Mark an appointment as completed |
+| PUT | `/appointments/{id}/no-show` | Mark a user as no-show |
 
 ## 📊 API Response Format
 
@@ -220,10 +166,7 @@ All API endpoints follow a standardized response format:
 ### Error Response
 ```json
 {
-    "success": false,
-    "message": "Operation failed",
-    "error": "Detailed error message",
-    "data": null
+    "detail": "..." // Error message
 }
 ```
 
@@ -234,55 +177,44 @@ All API endpoints follow a standardized response format:
 pytest
 
 # Run specific test files
-pytest tests/test_users.py
-pytest tests/test_appointments.py
+pytest tests/test_user.py
+pytest tests/test_service_account.py
+pytest tests/test_appointment.py
 
-# Run with coverage report
-pytest --cov=app tests/
-```
-
-## 📁 Project Structure
-
-```
-waitlist_api/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── config.py
-│   ├── database.py
-│   ├── models.py
-│   ├── schemas.py
-│   ├── crud.py
-│   ├── routers/
-│   │   ├── __init__.py
-│   │   ├── users.py
-│   │   ├── appointments.py
-│   ├── versions/
-│   ├── env.py
-├── tests/
-│   ├── __init__.py
-│   ├── test_users.py
-│   ├── test_appointments.py
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-└── README.md
+# Run with verbose output
+pytest -vs tests/test_appointment.py
 ```
 
 ## 📋 Example API Requests
+
+### Creating a User
+
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/users/' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "name": "John Doe",
+  "phone": "+12025550178",
+  "email": "john@example.com"
+}'
+```
 
 ### Creating a Service Account
 
 ```bash
 curl -X 'POST' \
-  'http://localhost:8000/users/service-accounts' \
+  'http://localhost:8000/service-accounts/' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
   "name": "Downtown Spa",
-  "phone": "+12025550178",
-  "email": "info@downtownspa.com",
-  "description": "Relaxing spa treatments in the heart of downtown"
+  "phone": "+12025550179",
+  "description": "Relaxing spa treatments",
+  "enable_cancellation_scoring": true,
+  "cancellation_weight": 1.0,
+  "no_show_weight": 2.0
 }'
 ```
 
@@ -294,12 +226,20 @@ curl -X 'POST' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
-  "user_id": 1,
-  "service_account_id": 2,
-  "appointment_date": "2025-03-15",
+  "user_phone": "+12025550178",
+  "service_account_phone": "+12025550179",
+  "appointment_date": "2025-03-15T10:00:00Z",
   "duration_minutes": 60,
   "notes": "First-time customer"
 }'
+```
+
+### Retrieving Appointment Queue
+
+```bash
+curl -X 'GET' \
+  'http://localhost:8000/appointments/?service_account_phone=+12025550179&day=2025-03-15' \
+  -H 'accept: application/json'
 ```
 
 ## 📜 License

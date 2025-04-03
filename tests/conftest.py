@@ -1,3 +1,7 @@
+"""
+Conftest for pytest.
+"""
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -6,7 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.models.base import Base
-from app.models.database import get_db
+from app.backend.session import get_db
 
 
 @pytest.fixture(scope="session")
@@ -48,25 +52,25 @@ def client(test_engine, override_get_db):
 
 
 @pytest.fixture
-def user_id(client):
+def user_phone(client):
     response = client.post(
         "/users/",
         json={"name": "Test User", "phone": "+5511987654321"},
     )
-    return response.json()["data"]["id"]
+    return response.json()["data"]["phone"]
 
 
 @pytest.fixture
-def second_user_id(client):
+def second_user_phone(client):
     response = client.post(
         "/users/",
         json={"name": "Second User", "phone": "+5511987654322"},
     )
-    return response.json()["data"]["id"]
+    return response.json()["data"]["phone"]
 
 
 @pytest.fixture
-def service_account_id(client):
+def service_account_phone(client):
     response = client.post(
         "/service-accounts/",
         json={
@@ -75,11 +79,11 @@ def service_account_id(client):
             "description": "A test service",
         },
     )
-    return response.json()["data"]["id"]
+    return response.json()["data"]["phone"]
 
 
 @pytest.fixture
-def another_service_account_id(client):
+def another_service_account_phone(client):
     response = client.post(
         "/service-accounts/",
         json={
@@ -88,4 +92,4 @@ def another_service_account_id(client):
             "description": "Another test service",
         },
     )
-    return response.json()["data"]["id"]
+    return response.json()["data"]["phone"]

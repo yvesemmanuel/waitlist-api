@@ -1,6 +1,6 @@
-import pytest
-
-from app.main import app
+"""
+User routers tests.
+"""
 
 
 def test_create_regular_user(client):
@@ -15,7 +15,6 @@ def test_create_regular_user(client):
     assert res["message"] == "User created successfully"
     assert data["name"] == "Test User"
     assert data["phone"] == "+5511987654321"
-    assert "id" in data
 
 
 def test_create_user_with_invalid_phone(client):
@@ -33,9 +32,9 @@ def test_get_regular_user(client):
         "/users/",
         json={"name": "Test User", "phone": "+5511987654321"},
     )
-    user_id = create_response.json()["data"]["id"]
+    user_phone = create_response.json()["data"]["phone"]
 
-    response = client.get(f"/users/{user_id}")
+    response = client.get(f"/users/{user_phone}")
     assert response.status_code == 200
     res = response.json()
     data = res["data"]
@@ -70,10 +69,10 @@ def test_update_user(client):
         "/users/",
         json={"name": "Test User", "phone": "+5511987654321"},
     )
-    user_id = create_response.json()["data"]["id"]
+    user_phone = create_response.json()["data"]["phone"]
 
     response = client.put(
-        f"/users/{user_id}",
+        f"/users/{user_phone}",
         json={"name": "Updated User", "email": "test@example.com"},
     )
     assert response.status_code == 200
@@ -90,10 +89,10 @@ def test_cannot_update_phone(client):
         "/users/",
         json={"name": "Test User", "phone": "+5511987654321"},
     )
-    user_id = create_response.json()["data"]["id"]
+    user_phone = create_response.json()["data"]["phone"]
 
     response = client.put(
-        f"/users/{user_id}",
+        f"/users/{user_phone}",
         json={"phone": "+5511987654322"},
     )
     assert response.status_code == 422
@@ -106,10 +105,10 @@ def test_delete_user(client):
         "/users/",
         json={"name": "Test User", "phone": "+5511987654321"},
     )
-    user_id = create_response.json()["data"]["id"]
+    user_phone = create_response.json()["data"]["phone"]
 
-    response = client.delete(f"/users/{user_id}")
+    response = client.delete(f"/users/{user_phone}")
     assert response.status_code == 204
 
-    response = client.get(f"/users/{user_id}")
+    response = client.get(f"/users/{user_phone}")
     assert response.status_code == 404

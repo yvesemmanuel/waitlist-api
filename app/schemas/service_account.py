@@ -6,14 +6,14 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, field_validator, EmailStr, ConfigDict
 
-from app.schemas.person import PersonBase
+from app.schemas.base import BaseAccount
 
 
-class ServiceAccountCreate(PersonBase):
+class ServiceAccountCreate(BaseAccount):
     description: Optional[str] = None
-    enable_cancellation_scoring: bool = True
-    cancellation_weight: float = 1.0
-    no_show_weight: float = 2.0
+    enable_cancellation_scoring: Optional[bool] = True
+    cancellation_weight: Optional[float] = 1.0
+    no_show_weight: Optional[float] = 2.0
 
 
 class ServiceAccountUpdate(BaseModel):
@@ -32,12 +32,12 @@ class ServiceAccountUpdate(BaseModel):
         return v
 
 
-class ServiceAccount(PersonBase):
+class ServiceAccount(BaseAccount):
     id: int
     description: Optional[str] = None
     created_at: datetime
-    enable_cancellation_scoring: bool = True
-    cancellation_weight: float = 1.0
-    no_show_weight: float = 2.0
+    enable_cancellation_scoring: Optional[bool] = True
+    cancellation_weight: Optional[float] = 1.0
+    no_show_weight: Optional[float] = 2.0
 
     model_config = ConfigDict(from_attributes=True)

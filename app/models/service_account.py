@@ -34,6 +34,6 @@ class ServiceAccount(Base, BaseDict):
 
     appointments = relationship(
         "Appointment",
-        foreign_keys="[Appointment.service_account_id]",
+        foreign_keys="[Appointment.service_account_phone]",
         back_populates="service_account",
     )

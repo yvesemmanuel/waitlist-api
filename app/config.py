@@ -1,3 +1,7 @@
+"""
+Configuration settings.
+"""
+
 from pydantic_settings import BaseSettings
 from enum import Enum
 from typing import Optional

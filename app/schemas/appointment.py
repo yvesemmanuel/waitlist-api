@@ -18,8 +18,8 @@ class AppointmentBase(BaseModel):
 
 
 class AppointmentCreate(AppointmentBase):
-    user_id: int
-    service_account_id: int
+    user_phone: str
+    service_account_phone: str
 
     @field_validator("appointment_date", mode="before")
     def validate_appointment_date(cls, v):
@@ -77,8 +77,8 @@ class AppointmentUpdate(BaseModel):
 
 class Appointment(AppointmentBase):
     id: int
-    user_id: int
-    service_account_id: int
+    user_phone: str
+    service_account_phone: str
     status: AppointmentStatus
     created_at: datetime
     penalty: float = 0.0
